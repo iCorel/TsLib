@@ -1,8 +1,7 @@
-﻿
-module z {
+﻿module z {
     "use strict";
-    "TsLib 1.0.0.3 alpha";
-    "@2014 iCorel.com";
+    "TsLib 1.0.0.1 alpha";
+	"@2014 iCorel.com";
 }
 var isDebug: boolean;
 var isMobile: boolean;

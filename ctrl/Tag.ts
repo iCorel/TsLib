@@ -1,63 +1,72 @@
-﻿module z.ctrl {
-	export class Tag {
-		public main: HTMLElement;
+﻿/// <reference path="ctrl.ts" />
+module z.ctrl {
+	export class Tag{
+		//public main: HTMLElement;
 		public hinput: HTMLInputElement;
-		//public input: HTMLInputElement;
+		public input;
 		public list: HTMLUListElement;
+		public curSelect;
 		public Data: Array<m.Tag>;
-		public onChange: Function;
-		public constructor(public input: HTMLInputElement) {
-			this.main = document.createElement("div");
-			this.main.setAttribute("data-ctrl", "tag");
-			this.hinput = <any> document.createElement("input");
-			this.hinput.type = "hidden";
-			this.hinput.name = this.input.getAttribute("data-name");
+		public Value;
+		public nested;
+		public from;
+		public to;
+		constructor(public elm: HTMLElement) {
+			//super(elm);
+			this.nested = "_";
+			this.from = 2;
+			if (this.elm.hasAttribute("data-nested"))
+				this.nested = this.elm.getAttribute("data-nested");
+			if (this.elm.hasAttribute("data-from"))
+				this.from = this.elm.getAttribute("data-from");
+			this.to = this.from;
+			if (this.elm.hasAttribute("data-to"))
+				this.to = this.elm.getAttribute("data-to");
+			this.install();
+			this.elm.jsObj = this;
+		}
+		public install() {
+			if (this.elm.hasAttribute("data-installed"))
+				return;
+			this.input = <any>this.elm.el('input:not([type="hidden"])');
+			this.list = <any>this.elm.el('ul');
+			this.hinput = <any>this.elm.el('input[type="hidden"]');
+			if (this.input == null) {
+				this.input = <any> document.createElement("input");
+				this.input.classList.add("form-control");
+				this.elm.appendChild(this.input);
+			}
+			if (this.list == null) {
+				this.list = <any> document.createElement("ul");
+				this.elm.appendChild(this.list);
+			}
+			if (this.hinput == null) {
+				this.hinput = <any> document.createElement("input");
+				this.hinput.type = "hidden";
+				this.hinput.name = this.input.getAttribute("data-name");
+				this.elm.appendChild(this.hinput);
+			}
 			this.input.onkeydown = evt=> { this.onkeydown(evt) };
 			this.input.onkeyup = evt=> { this.onkeyup() };
-			this.list = <any> document.createElement("ul");
-			//#region Get Width Height
-			//var w = this.input.offsetWidth;
-			//var h = this.input.offsetHeight;
-			//#endregion
-			var cs = this.input.classList;
-			cs.remove("form-control");
-			for (var i = 0; i < cs.length; i++) {
-				this.main.classList.add(cs[i]);
-				this.input.classList.remove(cs[i]);
-			}
-			this.input.parentElement.insertBefore(this.main, this.input);
-			this.main.appendChild(this.input);
-			this.main.appendChild(this.hinput);
-			this.main.appendChild(this.list);
-			this.onkeyup();
-			//#region Bootstrap
-			//this.main.style.height = h + "px";
-			//this.main.style.width = w + "px";
-			this.input.classList.add("form-control");
-			this.list.classList.add("dropdown-menu");
-			this.main.classList.add("input-group");
-			if (this.input.hasAttribute("data-lbl")) {
-				var lbl = document.createElement("div");
-				lbl.innerHTML = this.input.getAttribute("data-lbl");
-				lbl.classList.add("input-group-addon");
-				this.main.insertBefore(lbl, this.input);
-			}
-			var btn = document.createElement("div");
-			btn.classList.add("input-group-btn");
-			this.main.insertBefore(btn,this.hinput);
-			btn.innerHTML = '<button type="button" class="btn btn-info"><span class="caret"></span></button>';
-			btn.onclick = () => {
-				if (this.list.classList.contains("show")) {
-					this.list.classList.remove("show");
-				} else {
-					this.list.style.width = this.main.offsetWidth+"px";
-					this.list.classList.add("show");
-				}
-			};
-			//#endregion
-			this.main.jsObj = this;
 		}
-		public onclick() {
+		public getSearchText() {
+			return this.input.value;
+		}
+		public onkeyup() {
+			var api = new XMLHttpRequest();
+			var url = "/api/tag?";
+			url += "query=" + this.getSearchText();
+			url += "&nested=" + this.nested;
+			url += "&from=" + this.from;
+			url += "&to=" + this.to;
+
+			api.open("GET", url, true);
+			var dat = new FormData();
+			api.send();
+			api.onload = evt=> {
+				this.Data = JSON.parse(api.response);
+				this.repaint();
+			};
 		}
 		public onkeydown(evt: KeyboardEvent) {
 			switch (evt.keyCode) {
@@ -69,6 +78,7 @@
 					else
 						(<HTMLElement>this.list.lastElementChild).className = "selected";
 					evt.preventDefault();
+					break;
 				case 40:
 					var selected = this.list.el(".selected");
 					this.list.els(".selected").forEach(x=> x.className = "");
@@ -77,58 +87,43 @@
 					else
 						(<HTMLElement>this.list.firstElementChild).className = "selected";
 					evt.preventDefault();
+					break;
+				case 13:
+					var selected = this.list.el(".selected");
+					if (selected != null)
+						this.select(selected.jsObj);
+					evt.preventDefault();
+					break;
 			}
-			console.debug("", evt.keyCode);
 		}
-		public onkeyup() {
-			var api = new XMLHttpRequest();
-			var url = "/api/tag?";
-			url += "query=" + this.input.value;
-			url += "&nested=" + this.input.getAttribute("data-nested");
-			if (this.input.hasAttribute("data-from")) {
-				url += "&from="+this.input.getAttribute("data-from");
-			}
-			if (this.input.hasAttribute("data-to")) {
-				url += "&to=" + this.input.getAttribute("data-to");
-			}
-			api.open("GET", url, true);
-			var dat = new FormData();
-			api.send();
-			api.onload = evt=> {
-				this.Data = JSON.parse(api.response);
-				this.repaint();
-			};
-		}
-		public setSelect(index: number) {
-			this.list.els(".selected").forEach(x=> x.className = "");
-			(<HTMLElement>this.list.childNodes[index]).className = "selected";
-		}
-		public reselect() {
-			if (this.hinput.value != "" && this.list.el('[data-id="' + this.hinput.value + '"') != null) {
-				this.list.el('[data-id="' + this.hinput.value + '"');
-			} else if (this.list.firstElementChild != null) {
-				(<HTMLElement>this.list.firstElementChild).className = "selected";
-				this.hinput.value = this.list.el(".selected").getAttribute("data-id");
-			}
+		public select(dat: m.Tag) {
+			this.Value = dat;
+			this.input.value = this.Value.Name;
+			this.hinput.value = this.Value.Id + "";
 		}
 		public repaint() {
+			var s;
 			if (this.list.el(".selected") != null) {
-				this.hinput.value = this.list.el(".selected").getAttribute("data-id");
+				s = this.list.el(".selected").getAttribute("data-id");
 			}
 			this.list.innerHTML = "";
 			this.Data.forEach(x=> {
 				var eli = document.createElement("li");
 				this.list.appendChild(eli);
-				eli.innerHTML = "<a>" + x.Name + "</a>";
+				eli.innerText = x.Name;
 				eli.setAttribute("data-id", x.Id + "");
+				eli.jsObj = x;
+				eli.onclick = evt=> {
+					this.select(x);
+				};
 			});
-			if (this.hinput.value != "" && this.list.el('[data-id="' + this.hinput.value + '"') != null) {
-				this.list.el('[data-id="' + this.hinput.value + '"]').className = "selected";
+			if (s != null && this.list.el('[data-id="' + s + '"') != null) {
+				this.list.el('[data-id="' + s + '"]').className = "selected";
 			} else if (this.list.firstElementChild != null) {
-				(<HTMLElement>this.list.firstElementChild).className = "selected";
-				this.hinput.value = this.list.el(".selected").getAttribute("data-id");
+				this.list.el("li").className = "selected";
+				s = this.list.el(".selected").getAttribute("data-id");
 			}
 		}
 	}
 }
-//els('[data-ctrl="tag"]').forEach(x=> { new z.ctrl.Tag(<any>x); });
+z.Handler.lazyLoad["tag"] = evt=> { els('[data-ctrl="tag"]:not([data-installed])').forEach(x=> { new z.ctrl.Tag(x); }) };
